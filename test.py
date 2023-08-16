@@ -15,6 +15,9 @@ Gephi = nx.Graph()
 GAllIntersectionPossibilities = nx.Graph()
 GIntersectionNode = nx.Graph()
 GLidarPositioning = nx.Graph()
+GStreetCovering = nx.Graph()
+Graph = nx.Graph()
+lidarBeamRange = 3
 # with open('h:/Documents/LMU/test.json') as mon_fichier:
 #     data = json.load(mon_fichier)
 
@@ -33,11 +36,24 @@ GLidarPositioning = nx.Graph()
 NR = []
 NL = []
 Gephi.add_edges_from([
+    # ((-8,16),(-10,-2), {'width':2}),
+    # ((5,10), (-8,16), {'width': 2}),
+    # ((5,10), (0,0), {'width': 2}),
+    # ((0,0), (15,-6), {'width': 2}),
+    # ((-10,-2), (0,0), {'width': 2}),
+    
     ((-8,16),(-10,-2), {'width':2}),
-    ((5,10), (-8,16), {'width': 2}),
-    ((5,10), (0,0), {'width': 2}),
-    ((0,0), (15,-6), {'width': 2}),
-    ((-10,-2), (0,0), {'width': 2}),
+    ((5,10), (-8,16), {'width': 2}), 
+    ((-10,-2),(-5,-14), {'width':2}),
+    ((-6,-17),(-5,-14), {'width':2}),
+    ((-6,-17),(-4,-20), {'width':2}),
+    # #((-6,-20),(-18,-2), {'index': 4, 'width':2}),
+    # #((-18,-2),(-20,+15), {'index': 4, 'width':2}),
+    # #((-8,16),(-10,-2), {'width':2}),
+    # #((5,10), (-8,16), {'width': 2}), 
+    # ((5,10), (0,0), {'width': 2}),
+    # #((0,0), (15,-6), {'width': 2}),
+    # ((0,0), (-1,5), {'width': 2}),
     ])
 
 
@@ -93,7 +109,7 @@ def neighborGenerator(Gephi):
                 l.append((bigList[0][0],bigList[-1][0],radiusE1E2, bigList[0][1], bigList[-1][1]))
             neighborEdge.extend(l)
             l = []
-    print("neighborEdge = ", neighborEdge)
+    # print("neighborEdge = ", neighborEdge)
     return(neighborEdge)
 
 def intersectionGenerator(_list):
@@ -106,7 +122,6 @@ def intersectionGenerator(_list):
     """
     _dict = {}
     for index in _list:
-        
         set1 = set(index[0]) #recover the node
         set2 = set(index[1]) #recover the node
         commonNode = next(iter(set1.intersection(set2)))
@@ -219,11 +234,11 @@ def graphBordersStreet(_dict):
     Generator of the borders of the streets 
 
     :param _dict: dictionary for each node their borders node associated with their neightbore node
-    :return: list of the borders of the street where lidar can be placed in the form 
-    [Edge0Border0Node0, Edge0Border0Node1, Edge0Border1Node0, Edge0Border1Node1, Edge1Border0Node0, ...]
+    :return: list of the borders of the street where lidar can be placed in the form and the width
+    [Edge0Border0Node0, Edge0Border0Node1, Edge0Border1Node0, Edge0Border1Node1, width, Edge1Border0Node0, ...]
     '''
     
-    listPossibleLidarPositionEdges : List[Tuple[Node, Node, Node, Node]]
+    listPossibleLidarPositionEdges : List[Tuple[Node, Node, Node, Node], float]
     blacklist : List[Node]
         
     listPossibleLidarPositionEdges = []
@@ -231,6 +246,7 @@ def graphBordersStreet(_dict):
     
     for n1 in Gephi.nodes:
         bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges)
+    # print("listPossibleLidarPositionEdges = ", listPossibleLidarPositionEdges)
     return listPossibleLidarPositionEdges
 
 # Find the edges representing the borders of the street depending on the first node N1
@@ -240,23 +256,28 @@ def bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges):
     degreeN1 = _dict[n1][0]
     
     # Separate the program into two function depending of the degree of the first node
-    
+ 
     if degreeN1 < 3:
         for n2 in Gephi.neighbors(n1):
+            width = Gephi[n1][n2]["width"]
             if n2 not in blacklist:
                 #print("n2 = ", n2)
                 # Create an edge between the node and its neightbore using bordersFromN2
                 bordersFromN2(n2, n1, _dict, listPossibleLidarPositionEdges)
+                listPossibleLidarPositionEdges.append(width)
     else:
         for n2 in Gephi.neighbors(n1):
+            width = Gephi[n1][n2]["width"]
             if n2 not in blacklist:
                 #print("n2 = ", n2)
                 #Create an edge between the node and its neightbore using bordersFromN2v2
                 bordersFromN2v2(n2, n1, _dict, listPossibleLidarPositionEdges)
+                listPossibleLidarPositionEdges.append(width)
     blacklist.append(n1)
+    return width
 
 
-def dist(A, B):
+def dist(A: Node, B: Node):
     return m.sqrt((A[0]-B[0])**2+(A[1]-B[1])**2)
 
 # Find the edges representing the borders of the street depending on the second node N2 with N1 a simple angle
@@ -272,15 +293,15 @@ def bordersFromN2(n2, n1, _dict, listPossibleLidarPositionEdges):
             GIntersectionNode.add_edge((_dict[n1][1][1]),(_dict[n2][1][1]))
             # print((_dict[n1][1][0]),(_dict[n2][1][0]))
             # print((_dict[n1][1][1]),(_dict[n2][1][1]))
-            listPossibleLidarPositionEdges.extend(((_dict[n1][1][0]),(_dict[n2][1][0]),(_dict[n1][1][1]),(_dict[n2][1][1])))
-            #listPossibleLidarPositionEdges.extend(())
+            listPossibleLidarPositionEdges.append((_dict[n1][1][0],_dict[n2][1][0],_dict[n1][1][1],_dict[n2][1][1]))
+            
         else:
             GIntersectionNode.add_edge((_dict[n1][1][1]),(_dict[n2][1][0]))
             GIntersectionNode.add_edge((_dict[n1][1][0]),(_dict[n2][1][1]))
             # print((_dict[n1][1][1]),(_dict[n2][1][0]))
             # print((_dict[n1][1][0]),(_dict[n2][1][1]))
-            listPossibleLidarPositionEdges.extend(((_dict[n1][1][1]),(_dict[n2][1][0]),(_dict[n1][1][0]),(_dict[n2][1][1])))
-            # listPossibleLidarPositionEdges.extend(())
+            listPossibleLidarPositionEdges.append((_dict[n1][1][1],_dict[n2][1][0],_dict[n1][1][0],_dict[n2][1][1]))
+            
     else:
         for i in range(1, len(_dict[n2]), 2):
             # print("_dict[n2][i][2]",_dict[n2][i][2])
@@ -314,15 +335,15 @@ def bordersFromN2(n2, n1, _dict, listPossibleLidarPositionEdges):
                 GIntersectionNode.add_edge(list1by1Border[2],list1by1Border[3])
                 # print(list1by1Border[0], list1by1Border[1])
                 # print(list1by1Border[2], list1by1Border[3])
-                listPossibleLidarPositionEdges.extend((list1by1Border[0], list1by1Border[1], list1by1Border[2],list1by1Border[3]))
-                #listPossibleLidarPositionEdges.extend(())
+                listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[1], list1by1Border[2],list1by1Border[3]))
+                
         else:
                 GIntersectionNode.add_edge(list1by1Border[0], list1by1Border[3])
                 GIntersectionNode.add_edge(list1by1Border[1],list1by1Border[2])
                 # print(list1by1Border[0], list1by1Border[3])
                 # print(list1by1Border[1], list1by1Border[2])
-                listPossibleLidarPositionEdges.extend((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
-                #listPossibleLidarPositionEdges.extend(())
+                listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
+                
     return listPossibleLidarPositionEdges
 
 # Find the edges representing the borders of the street depending on the second node N2 with N1 an intersection
@@ -369,14 +390,14 @@ def bordersFromN2v2(n2, n1, _dict, listPossibleLidarPositionEdges):
                 GIntersectionNode.add_edge(list1by1Border[2],list1by1Border[3])
                 # print(list1by1Border[0], list1by1Border[1])
                 # print(list1by1Border[2], list1by1Border[3])
-                listPossibleLidarPositionEdges.extend((list1by1Border[0], list1by1Border[1], list1by1Border[2],list1by1Border[3]))
+                listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[1], list1by1Border[2],list1by1Border[3]))
                 #listPossibleLidarPositionEdges.extend(())
         else:
                 GIntersectionNode.add_edge(list1by1Border[0], list1by1Border[3])
                 GIntersectionNode.add_edge(list1by1Border[1],list1by1Border[2])
                 # print(list1by1Border[0], list1by1Border[3])
                 # print(list1by1Border[1], list1by1Border[2])
-                listPossibleLidarPositionEdges.extend((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
+                listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
     else:
         for i in range(1, len(_dict[n1]), 2):
             if _dict[n1][i][2] == n2:
@@ -397,7 +418,7 @@ def LidarPositioningPossibilities(listPossibleLidarPositionEdges):
     '''
     Generator of nodes representing lidars position possibilities
 
-    :param listPossibleLidarPositionEdges: list representing edge for lidars placement
+    :param listPossibleLidarPositionEdges: list representing edge for lidars placement with width every four nodes
     :return: list of all the position of the lidars regrouping in list for all edges
     '''
     listNodeLidar : List[List[Node]]
@@ -406,169 +427,135 @@ def LidarPositioningPossibilities(listPossibleLidarPositionEdges):
     # print(listPossibleLidarPositionEdges)
     listNodeLidar = []
     for i in range (0, len(listPossibleLidarPositionEdges), 2):
-        l = []
-        p = 1
-        dX = listPossibleLidarPositionEdges[i+1][0] - listPossibleLidarPositionEdges[i][0]
-        dY = listPossibleLidarPositionEdges[i+1][1] - listPossibleLidarPositionEdges[i][1]
-        dist= m.sqrt(dX**2 + dY**2)
-        nbrL = dist//p
-        alpha = dX / nbrL
-        beta = dY / nbrL
+        # print(" i = ",listPossibleLidarPositionEdges[i])
+        for j in range(0, len(listPossibleLidarPositionEdges[i]), 2):
+            # print(" j = ",listPossibleLidarPositionEdges[i][j])
+            l = []
+            p = 1
+            # print(listPossibleLidarPositionEdges[i][j+1])
+            # print(listPossibleLidarPositionEdges[i][j][0])
+            dX = listPossibleLidarPositionEdges[i][j+1][0] - listPossibleLidarPositionEdges[i][j][0]
+            # print("dX = ", dX)
+            dY = listPossibleLidarPositionEdges[i][j+1][1] - listPossibleLidarPositionEdges[i][j][1]
+            dist= m.sqrt(dX**2 + dY**2)
+            nbrL = dist//p
+            alpha = dX / nbrL
+            beta = dY / nbrL
         
-        #Calculate for each edge all the lidar position possibilities
+            #Calculate for each edge all the lidar position possibilities
         
-        for j in range(int(nbrL) + 1):
-            xAlpha = listPossibleLidarPositionEdges[i][0] + alpha*j
-            yBeta = listPossibleLidarPositionEdges[i][1] + beta*j
-            GLidarPositioning.add_node((xAlpha , yBeta))
-            l.append((xAlpha , yBeta))
-        listNodeLidar.append(l)
-    print(listNodeLidar)
+            for k in range(1, int(nbrL) ):
+                xAlpha = listPossibleLidarPositionEdges[i][j][0] + alpha*k
+                yBeta = listPossibleLidarPositionEdges[i][j][1] + beta*k
+                GLidarPositioning.add_node((xAlpha , yBeta))
+                l.append((xAlpha , yBeta))
+            listNodeLidar.append(l)
+            listNodeLidar.append(listPossibleLidarPositionEdges[i+1])
+    #print("listNodeLidar = ",listNodeLidar)
     return listNodeLidar
 
+
 def StreetPositionCovering(listNodeLidar):
-    for i in (listNodeLidar):
-        pass
-    p = 5
-    pointsCovered = []
-    pointsHH = []
-    pointsVH = []
-    pointsHL = []
-    pointsVL = []
+    """
+    Generator of nodes representing the area to cover
 
-    def isHorizontal(edge):
-        if edge[0][1] ==  edge[1][1]:
-            return True
-        return False
+    :param listNodeLidar: list of all the lidar grouping by edges
+    :return: list of all the position of the lidars and covering node regrouping in list for all edges
+    """
+    
+    listNodes: List[List[Node], str]
+    listNodeCovering: List[Node]
+    
+    listNodes = []
+    listNodeCovering = []
+    
+    #step of two : one side is enough to determine the orientation of the covering node
+    
+    for index in range(0, len(listNodeLidar)-1, 4):
+        listNodeCovering = []
+        listNodes.append(listNodeLidar[index] + listNodeLidar[index+2])
+        #print(listNodeLidar[index][0][1])
+        AngleE = m.degrees(m.atan((listNodeLidar[index][0][1] - listNodeLidar[index][-1][1])/(listNodeLidar[index][0][0] - listNodeLidar[index][-1][0])))
+        middleLidar = len(listNodeLidar[index]) // 2
+        n1X = listNodeLidar[index][middleLidar][0] + 2*np.cos(m.radians(AngleE+90))
+        n1Y = listNodeLidar[index][middleLidar][1] + 2*np.sin(m.radians(AngleE+90))
+        n2X = listNodeLidar[index][middleLidar][0] + 2*np.cos(m.radians(AngleE-90))
+        n2Y = listNodeLidar[index][middleLidar][1] + 2*np.sin(m.radians(AngleE-90))
+        n1 = (n1X, n1Y)
+        n2 = (n2X, n2Y)
+        A = dist(n1,listNodeLidar[index+2][0]) + dist(n1,listNodeLidar[index+2][-1])
+        B = dist(n2,listNodeLidar[index+2][0]) + dist(n2,listNodeLidar[index+2][-1])
+        for node in listNodeLidar[index]:
+            for percent in range (4,9,4):
+                p = listNodeLidar[index+1] *2 * percent*0.1
+                if (A < B):
+            
+                    # all node of the covering street should have +90 depending of the lidar of listNodeLidar[index]
+                    # all node of the covering street should have -90 depending of the lidar of listNodeLidar[index+2]
+                    
+                    n1X = node[0] + p*np.cos(m.radians(AngleE+90))
+                    n1Y = node[1] + p*np.sin(m.radians(AngleE+90))
+                    point = (n1X,n1Y)
+                    GStreetCovering.add_node(point)
+                    listNodeCovering.append(point)
+                else :
+                    n1X = node[0] + p*np.cos(m.radians(AngleE-90))
+                    n1Y = node[1] + p*np.sin(m.radians(AngleE-90))
+                    point = (n1X,n1Y)
+                    GStreetCovering.add_node(point)
+                    listNodeCovering.append(point)
+        for node in listNodeLidar[index+2]:
+            for percent in range (4,9,4):
+                p = listNodeLidar[index+1] *2 * percent*0.1
+                if(A < B):
+                    n1X = node[0] + p*np.cos(m.radians(AngleE-90))
+                    n1Y = node[1] + p*np.sin(m.radians(AngleE-90))
+                    point = (n1X,n1Y)
+                    GStreetCovering.add_node(point)
+                    listNodeCovering.append(point)
+                else:
+                    n1X = node[0] + p*np.cos(m.radians(AngleE+90))
+                    n1Y = node[1] + p*np.sin(m.radians(AngleE+90))
+                    point = (n1X,n1Y)
+                    GStreetCovering.add_node(point)
+                    listNodeCovering.append(point)
+                    
+        listNodes.append(listNodeCovering) 
+    # print("listNodes = ", listNodes)       
+    return(listNodes)         
+listDeLidar = []
+def StreetEdge(listNodes):
+    """
+    Generator of edges between Lidars and Area to cover
 
-    def isVertical(edge):
-        if edge[0][0] ==  edge[1][0]:
-            return True
-        return False
+    :param listNode: list of all the lidar and covering node grouping by edges
+    :return: 
+    """
+    for index in range (0, len(listNodes), 2):
+        for nodeLidar in listNodes[index]:
+            listDeLidar.append(nodeLidar)
+            for nodeCovering in listNodes[index+1]:
+                distLC = dist(nodeLidar, nodeCovering)
+                if distLC <= lidarBeamRange:
+                    Graph.add_edge(nodeLidar, nodeCovering)
 
-    def isVTaller(edge1, edge2):
-        dE1 = abs( edge1[1][1] -  edge1[0][1])
-        dE2 = abs( edge2[1][1] -  edge2[0][1])
-        if dE1 >= dE2:
-            return True
-        False
+StreetEdge(StreetPositionCovering(LidarPositioningPossibilities(graphBordersStreet(intersectionGenerator(neighborGenerator(Gephi))))))
 
-    def isHTaller(edge1, edge2):
-        dE1 = abs(edge1[1][0] - edge1[0][0])
-        dE2 = abs(edge2[1][0] - edge2[0][0])
-        if dE1 >= dE2:
-            return True
-        return False
-
-    def SupH(edge1, edge2):
-        return edge1[0][1] > edge2[0][1]
-
-    def SupV(edge1, edge2):
-        return  edge1[0][0] >  edge2[0][0]
-
-    def InfV(edge1, edge2):
-        return  edge1[0][0] <  edge2[0][0]
-
-    def InfH(edge1, edge2):
-        return  edge1[0][1] <  edge2[0][1]
-
-    #place the street point between two edges representing the street
-    for edge1 in GLidarPositioning.edges:
-        if isHorizontal(edge1):
-            for edge2 in GLidarPositioning.edges:
-                if isHorizontal(edge2) and edge1 != edge2:
-                    if isHTaller(edge1, edge2):
-                        if SupH(edge1, edge2):
-                            for node in G1.nodes:
-                                if node[1] ==  edge1[0][1]  and node[0] !=  edge1[0][0] and node[0] !=  edge1[1][0]:
-                                    point = (node[0],node[1]-p)
-                                    pointsCovered.append(point)
-                                    if node not in pointsHH:
-                                        pointsHH.append(node)
-                                        print("H 4 edge1 = ", edge1)
-                                if node[1] ==  edge2[0][1] and not (node[0],node[1]) in pointsCovered and node[0] <=  edge2[0][0] and node[0] >=  edge2[1][0] and node not in pointsHL:
-                                    pointsHL.append(node)
-                                if node[1] ==  edge2[0][1]  and node[0] !=  edge2[0][0] and node[0] !=  edge2[1][0]:
-                                    point = (node[0],node[1]+p)
-                                    pointsCovered.append(point)
-                                    print("H 7 point covered = ", point)
-                    elif InfH(edge1, edge2):
-                        print("H 3 edge2= ",edge2)
-                        for node in G1.nodes:
-                            if node[1] ==  edge1[0][1]  and node[0] !=  edge1[0][0] and node[0] !=  edge1[1][0]:
-                                point = (node[0],node[1]+p)
-                                pointsCovered.append(point)
-                                print("H 8 point covered = ", point)
-                                if node not in pointsHH:
-                                    pointsHL.append(node)
-                                    print("H 4 edge1 = ", edge1)
-                            if node[1] ==  edge2[0][1] and not (node[0],node[1]) in pointsCovered and node[0] <=  edge2[0][0] and node[0] >=  edge2[1][0] and node not in pointsHL:
-                                pointsHH.append(node)
-                                print("H 5 edge2 = ", edge2)
-        if isVertical(edge1):
-            #print("V 1 edge1= ",edge1)
-            for edge2 in edges:
-                if isVertical(edge2) and edge1 != edge2:
-                    #print("V 1 edge2= ",edge2)
-                    if isVTaller(edge1, edge2):
-                        pass
-                    #print("V 2  edge1= ",edge1)
-                    if SupV(edge1, edge2):
-                        #print("V 3 edge1= ",edge1)
-                        for node in G1.nodes:
-                            if node[0] == edge1[0][0] and node[1] != edge1[0][1] and node[1] != edge1[1][1]  and not (node[0],node[1]) in pointsCovered:
-                                point = (node[0]-p,node[1])
-                                pointsCovered.append(point)
-                                print("V 6 point covered = ", point)
-                                if node not in pointsVH:
-                                    pointsVH.append(node)
-                                    #print("V 4 edge1 = ", edge1)
-                            if node[0] == edge2[0][0]  and node[1] != edge1[0][1] and node[1] != edge1[1][1] and not (node[0],node[1]) in pointsCovered and node not in pointsVL:
-                                pointsVL.append(node)
-                                #print("V 5 edge2 = ", edge2)
-                            if node[0] == edge2[0][0]  and node[1] != edge2[0][1] and node[1] != edge2[1][1]:
-                                point = (node[0]+p,node[1])
-                                pointsCovered.append(point)
-                                print("V 7 point covered = ", point)
-    GLidarPositioning.add_nodes_from(pointsCovered)
-    print(pointsCovered)
-
-    #edge that represents scope between lidar placement and vertices to cover
-    for node in pointsVL:
-        if (node[0]+p,node[1]) in pointsCovered:
-            G1.add_edge(node, (node[0]+p,node[1]))
-    for node in pointsHL:
-        if (node[0],node[1]+p) in pointsCovered:
-            G1.add_edge(node, (node[0],node[1]+p))
-    for node in pointsVH:
-        if (node[0]-p,node[1]) in pointsCovered:
-            G1.add_edge(node, (node[0]-p,node[1]))
-    for node in pointsHH:
-        if (node[0],node[1]-p) in pointsCovered:
-            G1.add_edge(node, (node[0],node[1]-p))
-
-    print(pointsVL, pointsVH, pointsHL, pointsHH)
-    pos = {node: node for node in G1.nodes}
-    nx.draw(G1, pos, with_labels=True)
-    nx.draw_networkx_nodes(G1, pos, pointsCovered, node_color='red', )
-    plt.xlim(0, 100)
-    plt.ylim(0, 100)
-    plt.xticks(range(0, 40))
-    plt.yticks(range(0, 40))
-    plt.show()
-LidarPositioningPossibilities(graphBordersStreet(intersectionGenerator(neighborGenerator(Gephi))))
-
-pos = {node: node for node in Gephi.nodes}
-pos3 = {node: node for node in GLidarPositioning.nodes}
-
-#positon = {node: node for node in GAllIntersectionPossibilities.nodes}
-nx.draw(Gephi, pos, with_labels=True, node_size = 150)
-#nx.draw(GAllIntersectionPossibilities, positon, with_labels=False)
-#nx.draw_networkx_nodes(GAllIntersectionPossibilities, positon, NL, node_color='red', )
-#nx.draw_networkx_nodes(GAllIntersectionPossibilities, positon, NR, node_color='green')
-posi = {node: node for node in GIntersectionNode.nodes}
-nx.draw(GIntersectionNode, posi, with_labels=False, node_color="pink", node_size = 200)
-nx.draw(GLidarPositioning, pos3, with_labels=False, node_color ='purple', node_size = 20)
+# pos = {node: node for node in Gephi.nodes}
+# pos3 = {node: node for node in GLidarPositioning.nodes}
+# pos4 = {node: node for node in GStreetCovering.nodes}
+# #positon = {node: node for node in GAllIntersectionPossibilities.nodes}
+# nx.draw(Gephi, pos, with_labels=True, node_size = 150)
+# #nx.draw(GAllIntersectionPossibilities, positon, with_labels=False)
+# #nx.draw_networkx_nodes(GAllIntersectionPossibilities, positon, NL, node_color='red', )
+# #nx.draw_networkx_nodes(GAllIntersectionPossibilities, positon, NR, node_color='green')
+# posi = {node: node for node in GIntersectionNode.nodes}
+# nx.draw(GIntersectionNode, posi, with_labels=False, node_color="pink", node_size = 200)
+# nx.draw(GLidarPositioning, pos3, with_labels=False, node_color ='purple', node_size = 20)
+# nx.draw(GStreetCovering,  pos4, with_labels=False, node_color ='blue', node_size = 10)
+pos5 = {node: node for node in Graph.nodes}
+nx.draw(Graph,  pos5, with_labels=False, node_color ='blue', node_size = 10)
+nx.draw_networkx_nodes(Graph, pos5, listDeLidar, node_color='red', node_size= 10)
 plt.xlim(-20, 20)
 plt.ylim(-20, 20)
 plt.xticks(range(-20, 20))
