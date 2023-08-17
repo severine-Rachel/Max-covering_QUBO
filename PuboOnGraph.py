@@ -1,10 +1,10 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import math as m
-import csv
 import numpy as np
-import json
-from typing import Tuple, Dict, List, NewType
+from typing import Tuple, List,  Union, Callable, NewType
+import random
+from time import time
 
 Node = NewType("node",Tuple[float, float])
 Edge = NewType("edge",Tuple[Node, Node])
@@ -12,46 +12,13 @@ Edge_Angle_List = NewType("Edge_Angle_List",List[Tuple[Edge, float]])
 
 
 Gephi = nx.Graph()
-GAllIntersectionPossibilities = nx.Graph()
-GIntersectionNode = nx.Graph()
-GLidarPositioning = nx.Graph()
-GStreetCovering = nx.Graph()
-Graph = nx.Graph()
-lidarBeamRange = 3
-# with open('h:/Documents/LMU/test.json') as mon_fichier:
-#     data = json.load(mon_fichier)
 
-# print(data['edges'])
-# for edge in data['edges']:
-#     for node in data['nodes']:
-#         if node["key"] == edge['source']:
-#             node_begin = (node["attributes"]['x'], node["attributes"]['y'])
-#         if node["key"] == edge['target']:
-#             node_end = (node["attributes"]['x'], node["attributes"]['y'])
-#     Gephi.add_edge(node_begin, node_end, width=3)
-#     node_begin = None
-#     node_end = None
-
-
-NR = []
-NL = []
 Gephi.add_edges_from([
     ((-8,16),(-10,-2), {'width':2}),
     ((5,10), (-8,16), {'width': 2}),
     ((5,10), (0,0), {'width': 2}),
     ((0,0), (15,-6), {'width': 2}),
-    ((-10,-2), (0,0), {'width': 2}),
-    
-    # ((-8,16),(-10,-2), {'width':2}),
-    # ((5,10), (-8,16), {'width': 2}), 
-    # ((-10,-2),(-5,-14), {'width':2}),
-    # ((-6,-17),(-5,-14), {'width':2}),
-    # #((-6,-17),(-4,-20), {'width':2}),
-    # #((-6,-20),(-18,-2), {'width':2}),
-    # #((-18,-2),(-20,15), {'width':2}),
-    # ((5,10), (0,0), {'width': 2}),
-    # ((0,0), (15,-6), {'width': 2}),
-    # ((0,0), (-1,5), {'width': 2}),
+    ((-10,-2), (0,0), {'width': 2})
     ])
 
 
@@ -192,32 +159,19 @@ def intersectionGenerator(_list):
         # -1: node with one neightbore 
         
         if not nE1 in _dict:
-            # print("nE1", nE1)
             _dict[nE1] = [-1, ((ptE1RX2, ptE1RY2),(ptE1LX2, ptE1LY2), commonNode)]
         if not nE2 in _dict:
-            # print("nE2", nE2)
             _dict[nE2] = [-1, ((ptE2LX2, ptE2LY2),(ptE2RX2, ptE2RY2), commonNode)]
 
         if not commonNode in _dict:
-            
-            # print("not commonNode in dict", commonNode)
             _dict[commonNode] = [2, ((xR, yR),(xL,yL),nE1, nE2, index[3], index[4]),position]
         else:
-            # print("commonNode in dict", commonNode)
             if _dict[commonNode][0] == -1:
                 _dict[commonNode] = [2, ((xR, yR),(xL,yL),nE1, nE2, index[3], index[4]), position]
             else:
                 _dict[commonNode].append(((xR, yR),(xL,yL),nE1, nE2, index[3], index[4]))
                 _dict[commonNode].extend(position)
                 _dict[commonNode][0] += 1
-        # GAllIntersectionPossibilities.add_node((xR,yR))
-        # GAllIntersectionPossibilities.add_node((xL,yL))
-        # #GAllIntersectionPossibilities.add_node((ptE2RX2, ptE2RY2))
-        # #GAllIntersectionPossibilities.add_node((ptE2LX2, ptE2LY2))
-        # NR.append((xR,yR))
-        # NL.append((xL,yL))
-        # #NR.append((ptE2RX2, ptE2RY2))
-        # #NL.append((ptE2LX2, ptE2LY2))
         
     # Ajust the good degree for each node that have more than 2 neighbores
     
@@ -244,13 +198,11 @@ def graphBordersStreet(_dict):
     
     for n1 in Gephi.nodes:
         bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges)
-    # print("listPossibleLidarPositionEdges = ", listPossibleLidarPositionEdges)
     return listPossibleLidarPositionEdges
 
 # Find the edges representing the borders of the street depending on the first node N1
 
-def bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges): 
-    #print("n1 = ", n1)
+def bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges):
     degreeN1 = _dict[n1][0]
     
     # Separate the program into two function depending of the degree of the first node
@@ -259,7 +211,7 @@ def bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges):
         for n2 in Gephi.neighbors(n1):
             width = Gephi[n1][n2]["width"]
             if n2 not in blacklist:
-                #print("n2 = ", n2)
+                
                 # Create an edge between the node and its neightbore using bordersFromN2
                 bordersFromN2(n2, n1, _dict, listPossibleLidarPositionEdges)
                 listPossibleLidarPositionEdges.append(width)
@@ -267,7 +219,7 @@ def bordersFromN1(blacklist, n1, _dict, listPossibleLidarPositionEdges):
         for n2 in Gephi.neighbors(n1):
             width = Gephi[n1][n2]["width"]
             if n2 not in blacklist:
-                #print("n2 = ", n2)
+            
                 #Create an edge between the node and its neightbore using bordersFromN2v2
                 bordersFromN2v2(n2, n1, _dict, listPossibleLidarPositionEdges)
                 listPossibleLidarPositionEdges.append(width)
@@ -287,22 +239,13 @@ def bordersFromN2(n2, n1, _dict, listPossibleLidarPositionEdges):
         A = dist(_dict[n1][1][0], _dict[n2][1][0]) + dist(_dict[n1][1][1],_dict[n2][1][1])
         B = dist(_dict[n1][1][1], _dict[n2][1][0]) + dist(_dict[n1][1][0],_dict[n2][1][1])
         if (A < B):
-            GIntersectionNode.add_edge((_dict[n1][1][0]),(_dict[n2][1][0]))
-            GIntersectionNode.add_edge((_dict[n1][1][1]),(_dict[n2][1][1]))
-            # print((_dict[n1][1][0]),(_dict[n2][1][0]))
-            # print((_dict[n1][1][1]),(_dict[n2][1][1]))
             listPossibleLidarPositionEdges.append((_dict[n1][1][0],_dict[n2][1][0],_dict[n1][1][1],_dict[n2][1][1]))
             
         else:
-            GIntersectionNode.add_edge((_dict[n1][1][1]),(_dict[n2][1][0]))
-            GIntersectionNode.add_edge((_dict[n1][1][0]),(_dict[n2][1][1]))
-            # print((_dict[n1][1][1]),(_dict[n2][1][0]))
-            # print((_dict[n1][1][0]),(_dict[n2][1][1]))
             listPossibleLidarPositionEdges.append((_dict[n1][1][1],_dict[n2][1][0],_dict[n1][1][0],_dict[n2][1][1]))
             
     else:
         for i in range(1, len(_dict[n2]), 2):
-            # print("_dict[n2][i][2]",_dict[n2][i][2])
             if _dict[n2][i][2] == n1:
                 if _dict[n2][i][4] < _dict[n2][i][5]:
                     if _dict[n2][i+1] == 'L':
@@ -329,17 +272,9 @@ def bordersFromN2(n2, n1, _dict, listPossibleLidarPositionEdges):
         A = dist(list1by1Border[0], list1by1Border[1]) + dist(list1by1Border[2],list1by1Border[3])
         B = dist(list1by1Border[1], list1by1Border[2]) + dist(list1by1Border[0],list1by1Border[3])
         if (A < B):
-                GIntersectionNode.add_edge(list1by1Border[0], list1by1Border[1])
-                GIntersectionNode.add_edge(list1by1Border[2],list1by1Border[3])
-                # print(list1by1Border[0], list1by1Border[1])
-                # print(list1by1Border[2], list1by1Border[3])
                 listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[1], list1by1Border[2],list1by1Border[3]))
                 
         else:
-                GIntersectionNode.add_edge(list1by1Border[0], list1by1Border[3])
-                GIntersectionNode.add_edge(list1by1Border[1],list1by1Border[2])
-                # print(list1by1Border[0], list1by1Border[3])
-                # print(list1by1Border[1], list1by1Border[2])
                 listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
                 
     return listPossibleLidarPositionEdges
@@ -354,63 +289,33 @@ def bordersFromN2v2(n2, n1, _dict, listPossibleLidarPositionEdges):
             if _dict[n1][i][2] == n2:
                 if _dict[n1][i][4] < _dict[n1][i][5]:
                     if _dict[n1][i+1] == 'L':
-                        # print("n1 A = L", (_dict[n1][i][1]),(_dict[n2][1][0]))
                         list1by1Border.extend(((_dict[n1][i][1]),(_dict[n2][1][0])))
                     else:
-                        # print("n1 A = R")
                         list1by1Border.extend(((_dict[n1][i][0]),(_dict[n2][1][0])))
                 else:
                     if _dict[n1][i+1] == 'L':
-                        # print("n1 A1 = L")
                         list1by1Border.extend(((_dict[n1][i][1]),(_dict[n2][1][1])))
                     else:
-                        # print("n1 A1 = R")
                         list1by1Border.extend(((_dict[n1][i][0]),(_dict[n2][1][0])))
             if _dict[n1][i][3] == n2:
                 if _dict[n1][i][4] > _dict[n1][i][5]:
                     if _dict[n1][i+1] == 'L':
-                        # print("n1 B = L")
                         list1by1Border.extend(((_dict[n1][i][1]),(_dict[n2][1][1])))
                     else:
-                        # print("n1 B = R")
                         list1by1Border.extend(((_dict[n1][i][0]),(_dict[n2][1][0])))
                 else:
                     if _dict[n1][i+1] == 'L':
-                        # print("n1 B1 = L",(_dict[n1][i][1]),(_dict[n2][1][1]))
                         list1by1Border.extend(((_dict[n1][i][1]),(_dict[n2][1][1])))
                     else:
-                        # print("n1 B1 = R")
                         list1by1Border.extend(((_dict[n1][i][0]),(_dict[n2][1][0])))
         A = dist(list1by1Border[0], list1by1Border[1]) + dist(list1by1Border[2],list1by1Border[3])
         B = dist(list1by1Border[1], list1by1Border[2]) + dist(list1by1Border[0],list1by1Border[3])
         if (A < B):
-                GIntersectionNode.add_edge(list1by1Border[0], list1by1Border[1])
-                GIntersectionNode.add_edge(list1by1Border[2],list1by1Border[3])
-                # print(list1by1Border[0], list1by1Border[1])
-                # print(list1by1Border[2], list1by1Border[3])
                 listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[1], list1by1Border[2],list1by1Border[3]))
-                #listPossibleLidarPositionEdges.extend(())
-        else:
-                GIntersectionNode.add_edge(list1by1Border[0], list1by1Border[3])
-                GIntersectionNode.add_edge(list1by1Border[1],list1by1Border[2])
-                # print(list1by1Border[0], list1by1Border[3])
-                # print(list1by1Border[1], list1by1Border[2])
-                listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
-    else:
-        for i in range(1, len(_dict[n1]), 2):
-            if _dict[n1][i][2] == n2:
-                if _dict[n1][i][4] < _dict[n1][i][5]:
-                    for j in range(1, len(_dict[n2]), 2):
-                        if _dict[n2][j][2] == n1:
-                            if _dict[n2][j][4] > _dict[n2][j][5]:
-                                    GIntersectionNode.add_edge((_dict[n1][i][1]),(_dict[n2][j][0]))
-                if _dict[n1][i][5] < _dict[n1][i][4]:
-                    for j in range(1, len(_dict[n2]), 2):
-                        if _dict[n2][j][2] == n1:
-                            if _dict[n2][j][5] > _dict[n2][j][4]:
-                                    GIntersectionNode.add_edge((_dict[n1][i][1]),(_dict[n2][j][0]))
-    return listPossibleLidarPositionEdges
 
+        else:
+                listPossibleLidarPositionEdges.append((list1by1Border[0], list1by1Border[3], list1by1Border[1],list1by1Border[2]))
+    return listPossibleLidarPositionEdges
 
 def LidarPositioningPossibilities(listPossibleLidarPositionEdges):
     '''
@@ -421,22 +326,16 @@ def LidarPositioningPossibilities(listPossibleLidarPositionEdges):
     '''
     listNodeLidar : List[List[Node]]
     l : List[Node]
-    
-    # print(listPossibleLidarPositionEdges)
+    stepLidar = 2.5
     listNodeLidar = []
     for i in range (0, len(listPossibleLidarPositionEdges), 2):
-        # print(" i = ",listPossibleLidarPositionEdges[i])
         for j in range(0, len(listPossibleLidarPositionEdges[i]), 2):
-            # print(" j = ",listPossibleLidarPositionEdges[i][j])
             l = []
-            p = 1
-            # print(listPossibleLidarPositionEdges[i][j+1])
-            # print(listPossibleLidarPositionEdges[i][j][0])
+            
             dX = listPossibleLidarPositionEdges[i][j+1][0] - listPossibleLidarPositionEdges[i][j][0]
-            # print("dX = ", dX)
             dY = listPossibleLidarPositionEdges[i][j+1][1] - listPossibleLidarPositionEdges[i][j][1]
             dist= m.sqrt(dX**2 + dY**2)
-            nbrL = dist//p
+            nbrL = dist//stepLidar
             alpha = dX / nbrL
             beta = dY / nbrL
         
@@ -445,11 +344,9 @@ def LidarPositioningPossibilities(listPossibleLidarPositionEdges):
             for k in range(0, int(nbrL) ):
                 xAlpha = listPossibleLidarPositionEdges[i][j][0] + alpha*k
                 yBeta = listPossibleLidarPositionEdges[i][j][1] + beta*k
-                GLidarPositioning.add_node((xAlpha , yBeta))
                 l.append((xAlpha , yBeta))
             listNodeLidar.append(l)
             listNodeLidar.append(listPossibleLidarPositionEdges[i+1])
-    print("listNodeLidar = ",listNodeLidar)
     return listNodeLidar
 
 
@@ -472,10 +369,6 @@ def StreetPositionCovering(listNodeLidar):
     for index in range(0, len(listNodeLidar)-1, 4):
         listNodeCovering = []
         listNodes.append(listNodeLidar[index] + listNodeLidar[index+2])
-        # print("listNodeLidar[index][0][1] = ", listNodeLidar[index][0][1])
-        # print("listNodeLidar[index][-1][1] = ", listNodeLidar[index][-1][1])
-        # print("listNodeLidar[index][0][0] = ", listNodeLidar[index][0][0])
-        # print("listNodeLidar[index][-1][0] = ", listNodeLidar[index][-1][0])
         AngleE = m.degrees(m.atan((listNodeLidar[index][0][1] - listNodeLidar[index][-1][1])/(listNodeLidar[index][0][0] - listNodeLidar[index][-1][0])))
         middleLidar = len(listNodeLidar[index]) // 2
         n1X = listNodeLidar[index][middleLidar][0] + 2*np.cos(m.radians(AngleE+90))
@@ -488,84 +381,223 @@ def StreetPositionCovering(listNodeLidar):
         B = dist(n2,listNodeLidar[index+2][0]) + dist(n2,listNodeLidar[index+2][-1])
         for node in listNodeLidar[index]:
             for percent in range (4,9,4):
-                p = listNodeLidar[index+1] *2 * percent*0.1
+                perc = listNodeLidar[index+1] *2 * percent*0.1
                 if (A < B):
             
                     # all node of the covering street should have +90 depending of the lidar of listNodeLidar[index]
                     # all node of the covering street should have -90 depending of the lidar of listNodeLidar[index+2]
                     
-                    n1X = node[0] + p*np.cos(m.radians(AngleE+90))
-                    n1Y = node[1] + p*np.sin(m.radians(AngleE+90))
+                    n1X = node[0] + perc*np.cos(m.radians(AngleE+90))
+                    n1Y = node[1] + perc*np.sin(m.radians(AngleE+90))
                     point = (n1X,n1Y)
-                    GStreetCovering.add_node(point)
                     listNodeCovering.append(point)
                 else :
-                    n1X = node[0] + p*np.cos(m.radians(AngleE-90))
-                    n1Y = node[1] + p*np.sin(m.radians(AngleE-90))
+                    n1X = node[0] + perc*np.cos(m.radians(AngleE-90))
+                    n1Y = node[1] + perc*np.sin(m.radians(AngleE-90))
                     point = (n1X,n1Y)
-                    GStreetCovering.add_node(point)
                     listNodeCovering.append(point)
         for node in listNodeLidar[index+2]:
             for percent in range (4,9,4):
-                p = listNodeLidar[index+1] *2 * percent*0.1
+                perc = listNodeLidar[index+1] *2 * percent*0.1
                 if(A < B):
-                    n1X = node[0] + p*np.cos(m.radians(AngleE-90))
-                    n1Y = node[1] + p*np.sin(m.radians(AngleE-90))
+                    n1X = node[0] + perc*np.cos(m.radians(AngleE-90))
+                    n1Y = node[1] + perc*np.sin(m.radians(AngleE-90))
                     point = (n1X,n1Y)
-                    GStreetCovering.add_node(point)
                     listNodeCovering.append(point)
                 else:
-                    n1X = node[0] + p*np.cos(m.radians(AngleE+90))
-                    n1Y = node[1] + p*np.sin(m.radians(AngleE+90))
+                    n1X = node[0] + perc*np.cos(m.radians(AngleE+90))
+                    n1Y = node[1] + perc*np.sin(m.radians(AngleE+90))
                     point = (n1X,n1Y)
-                    GStreetCovering.add_node(point)
                     listNodeCovering.append(point)
-                    
-        listNodes.append(listNodeCovering) 
-    # print("listNodes = ", listNodes)       
+        listNodes.append(listNodeCovering)  
     return(listNodes)
       
-listLidar = []
-listCovering = []
-def StreetEdge(listNodes):
+
+
+def StreetEdge(listNodes,lidarBeamRange = 3):
     """
     Generator of edges between Lidars and Area to cover
 
     :param listNode: list of all the lidar and covering node grouping by edges
     :return: 
     """
+    Graph = nx.Graph()
+    listLidar = []
+    listCovering = []
     for index in range (0, len(listNodes), 2):
         for nodeLidar in listNodes[index]:
             for nodeCovering in listNodes[index+1]:
                 distLC = dist(nodeLidar, nodeCovering)
                 if distLC <= lidarBeamRange:
+                    #print("nodeLidar = ",nodeLidar,"nodeCovering", nodeCovering)
+                    Graph.add_edge(nodeLidar, nodeCovering)
                     if nodeLidar not in listLidar:
                         listLidar.append(nodeLidar)
                     if nodeCovering not in listCovering:
                         listCovering.append(nodeCovering)
-                    Graph.add_edge(nodeLidar, nodeCovering)
+    #print(Graph.edges)
+    # print(listCovering)
+    # print(listLidar)
+    return Graph,listLidar,listCovering
+    
 
 
-StreetEdge(StreetPositionCovering(LidarPositioningPossibilities(graphBordersStreet(intersectionGenerator(neighborGenerator(Gephi))))))
-#StreetPositionCovering(LidarPositioningPossibilities(graphBordersStreet(intersectionGenerator(neighborGenerator(Gephi)))))
-#pos = {node: node for node in Gephi.nodes}
-#pos3 = {node: node for node in GLidarPositioning.nodes}
-pos4 = {node: node for node in GStreetCovering.nodes}
-# #positon = {node: node for node in GAllIntersectionPossibilities.nodes}
-# nx.draw(Gephi, pos, with_labels=True, node_size = 150)
-# #nx.draw(GAllIntersectionPossibilities, positon, with_labels=False)
-# #nx.draw_networkx_nodes(GAllIntersectionPossibilities, positon, NL, node_color='red', )
-# #nx.draw_networkx_nodes(GAllIntersectionPossibilities, positon, NR, node_color='green')
-posi = {node: node for node in GIntersectionNode.nodes}
-nx.draw(GIntersectionNode, posi, with_labels=False, node_color="pink", node_size = 20)
-# nx.draw(GLidarPositioning, pos3, with_labels=False, node_color ='purple', node_size = 20)
-# nx.draw(GStreetCovering,  pos4, with_labels=False, node_color ='blue', node_size = 10)
-pos5 = {node: node for node in Graph.nodes}
-nx.draw(Graph,  pos5, with_labels=False, node_color ='blue', node_size = 10)
-nx.draw_networkx_nodes(Graph, pos5, listLidar, node_color='red', node_size= 10)
-plt.xlim(-20, 20)
-plt.ylim(-20, 20)
-plt.xticks(range(-20, 20))
-plt.yticks(range(-20, 20))
-plt.gca().set_aspect('equal', adjustable='box')
-plt.show()
+Graph,listLidar,listCovering = StreetEdge(StreetPositionCovering(LidarPositioningPossibilities(graphBordersStreet(intersectionGenerator(neighborGenerator(Gephi))))))
+
+# Draw the graph before SA
+def render():
+    pos = {node: node for node in Graph.nodes}
+    nx.draw(Graph,  pos, with_labels=False, node_color ='blue', node_size = 10)
+    nx.draw_networkx_nodes(Graph, pos, listLidar, node_color='red', node_size= 10)
+    plt.xlim(-20, 20)
+    plt.ylim(-20, 20)
+    plt.xticks(range(-20, 20))
+    plt.yticks(range(-20, 20))
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.show()
+
+# Formulation of the mathematical problem
+
+def energyF(listLidar, listCovering):
+    def f(x):
+        somme = 0    
+        L = 10
+        somme = int(sum([x[i] for (i,v) in enumerate(listLidar)]))
+        for node in listCovering:
+            #print(node)
+            prod = int(m.prod([1 - x[i] for (i,v) in enumerate(listLidar) if (v in Graph.neighbors(node))])) * L
+            somme += prod         
+        return somme 
+    return(f)
+
+
+# Simulated Annealing
+
+
+def sa_solve(
+    f: Callable,
+    n: int,
+    n_temp_iter: int = 100,
+    n_iter: int = 1,
+    temp: float = 50,
+    warm_start: Union[List, np.ndarray] = None,
+) -> (List, List, float):
+    """
+    Standard simulated annealing solver
+
+    :param f: cost function
+    :param n: problem instance size (i.e., length of solution bitstring)
+    :param n_iter: number of runs
+    :param n_temp_iter: number of mutations
+    :param temp: starting temperature
+    :param warm_start: warm start solution vector
+    :return: solution with samples, energies and times
+    """
+    samples = []
+    energies = []
+    indices = list(range(0, n))
+
+    # keep track of wallclock time
+    start_time = time()
+
+    for _ in range(n_iter):
+        # define start vector
+        if warm_start is None:
+            x = np.array([0] * n) #start with the full graph
+        else:
+            x = np.array(warm_start)
+
+        # evaluate start vectorx
+        curr, curr_eval = x, f(x)
+        best, best_eval = curr, curr_eval
+
+        for i in range(n_temp_iter):
+            # flip a random bit to generate a neighbor
+            candidate = np.copy(curr)
+            flip_pos = random.sample(indices, 1)
+            candidate[flip_pos] = int(not candidate[flip_pos])
+
+            # evaluate new vector
+            candidate_eval = f(candidate)
+
+            # keep best vector
+            if candidate_eval <= best_eval:
+                best, best_eval = candidate, candidate_eval
+
+            # update temperature according to Metropolis–Hastings algorithm
+            diff = candidate_eval - curr_eval
+            t = temp / float(i + 1)
+
+            metropolis_eval = m.exp(-diff / t)
+
+            # base new mutations on new vector
+            if diff <= 0 or random.random() < metropolis_eval:
+                curr, curr_eval = candidate, candidate_eval
+
+        samples.append(best.tolist())
+        energies.append(best_eval)
+    runtime = time() - start_time
+    return samples, energies, runtime
+
+# Running the PUBO
+
+
+    
+
+def runningSA():
+    listEnergy = []
+    listNbrLidarAct = []
+    listCoverNAct = []
+    
+    n_temp_iter= 1000
+    for i in range (0, 10):
+        samples, energies, runtime = sa_solve(energyF(listLidar, listCovering), len(listLidar), n_temp_iter)
+        S = []
+        for i in range(len(samples[0])):
+            if samples[0][i]:
+                S.append(listLidar[i])
+        listCoverN = []
+        for node in S:
+            for node2 in Graph.neighbors(node):
+                listCoverN.append(node2)
+                
+        listEnergy.extend(energies)
+        listCoverNAct.append(len(listCoverN))
+        listNbrLidarAct.append(len(S))
+
+    print("runtime = ",runtime)
+        
+    fig,ax = plt.subplots(3)
+    ax[0].set_title("PUBO ran on LoopedGraph")
+    ax[0].set_ylabel("Energies")
+    ax[0].set_xticklabels(["SA 1000 iter 10"] )
+    ax[0].boxplot(listEnergy)
+    ax[1].set_ylabel("Nbr Activated Lidars")
+    ax[1].set_xticklabels(["SA 1000 iter 10"] )
+    ax[1].boxplot(listCoverNAct)
+    ax[2].set_ylabel("Nbr Activate Covering Nodes")
+    ax[2].set_xticklabels(["SA 1000 iter 10"] )
+    ax[2].boxplot(listNbrLidarAct)
+    plt.show()
+    
+    
+    # print(list(zip(samples, energies)))
+    # print(S) 
+    actE = []
+    actN = []
+    for node in S:
+        for edge in Graph.edges(node):
+            actE.append(edge)
+        for node2 in Graph.neighbors(node):
+            actN.append(node2)
+    pos = {node: node for node in Graph.nodes()}
+    nx.draw(Graph, pos, with_labels=False, node_size=40)
+    nx.draw_networkx_nodes(Graph, pos, listLidar, node_color = 'purple', node_size= 40)
+    nx.draw_networkx_nodes(Graph, pos, S, node_color='red', node_size=40)
+    nx.draw_networkx_nodes(Graph, pos, actN, node_color='blue', node_size=40)
+    nx.draw_networkx_edges(Graph, pos, actE, edge_color='red')
+    
+    plt.show()
+
+# if __name__ == "__main__":
+    # runningSA()
