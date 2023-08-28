@@ -1,5 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import savefig
 import math as m
 import numpy as np
 from typing import Tuple, List,  Union, Callable, NewType
@@ -77,16 +78,16 @@ def neighborGenerator(Gephi):
     # print("neighborEdge = ", neighborEdge)
     return(neighborEdge)
 
-def intersectionGenerator(_list):
+def intersectionGenerator(neighborEdge):
     """
     Generator of dictonary of all possible node that could represente the intersection of both streets 
     borders for each node depending of their neighbore node
 
-    :param _list: List of each edge linked two by two 
+    :param neighborEdge: List of each edge linked two by two 
     :return: dictionary for each node their borders node associated with their neightbore node 
     """
     _dict = {}
-    for index in _list:
+    for index in neighborEdge:
         set1 = set(index[0]) #recover the node
         set2 = set(index[1]) #recover the node
         commonNode = next(iter(set1.intersection(set2)))
@@ -127,7 +128,7 @@ def intersectionGenerator(_list):
         m2R = (ptE2RY2-ptE2RY1)/(ptE2RX2-ptE2RX1)
         p2R = ptE2RY1-m2R*ptE2RX1
         
-        #Find intersection node between to edge that cross each other
+        #Find intersection node between two edge that cross each other
         
         xR = (p1R-p2L)/(m2L-m1R)
         yR = m2L*(p1R-p2L)/(m2L-m1R)+p2L
@@ -326,7 +327,7 @@ def LidarPositioningPossibilities(listPossibleLidarPositionEdges):
     '''
     listNodeLidar : List[List[Node]]
     l : List[Node]
-    stepLidar = 2.5
+    stepLidar = 2
     listNodeLidar = []
     for i in range (0, len(listPossibleLidarPositionEdges), 2):
         for j in range(0, len(listPossibleLidarPositionEdges[i]), 2):
@@ -460,24 +461,23 @@ def render():
 
 def energyF(listLidar, listCovering):
     def f(x):
-        somme = 0    
+        somme = 0
         L = 10
         somme = int(sum([x[i] for (i,v) in enumerate(listLidar)]))
         for node in listCovering:
             #print(node)
             prod = int(m.prod([1 - x[i] for (i,v) in enumerate(listLidar) if (v in Graph.neighbors(node))])) * L
-            somme += prod         
-        return somme 
+            somme += prod
+        return somme
     return(f)
 
 
 # Simulated Annealing
 
-
 def sa_solve(
     f: Callable,
     n: int,
-    n_temp_iter: int = 100,
+    n_temp_iter: int = 1000,
     n_iter: int = 1,
     temp: float = 50,
     warm_start: Union[List, np.ndarray] = None,
@@ -548,9 +548,9 @@ def runningSA():
     listEnergy = []
     listNbrLidarAct = []
     listCoverNAct = []
-    
-    n_temp_iter= 1000
-    for i in range (0, 10):
+    listUnCoverAct = []
+    n_temp_iter= 100
+    for i in range (0, 1):
         samples, energies, runtime = sa_solve(energyF(listLidar, listCovering), len(listLidar), n_temp_iter)
         S = []
         for i in range(len(samples[0])):
@@ -563,23 +563,21 @@ def runningSA():
                 
         listEnergy.extend(energies)
         listCoverNAct.append(len(listCoverN))
+        listUnCoverAct.append((len(listCovering) - len(listCoverN)))
         listNbrLidarAct.append(len(S))
 
     print("runtime = ",runtime)
         
     fig,ax = plt.subplots(3)
-    ax[0].set_title("PUBO ran on LoopedGraph")
+    ax[0].set_title("PUBO ran on LoopedGraph step 2")
     ax[0].set_ylabel("Energies")
-    ax[0].set_xticklabels(["SA 1000 iter 10"] )
     ax[0].boxplot(listEnergy)
     ax[1].set_ylabel("Nbr Activated Lidars")
-    ax[1].set_xticklabels(["SA 1000 iter 10"] )
     ax[1].boxplot(listCoverNAct)
     ax[2].set_ylabel("Nbr Activate Covering Nodes")
-    ax[2].set_xticklabels(["SA 1000 iter 10"] )
+    ax[2].set_xticklabels(["SA 1000 iter 50"] )
     ax[2].boxplot(listNbrLidarAct)
     plt.show()
-    
     
     # print(list(zip(samples, energies)))
     # print(S) 
@@ -598,6 +596,9 @@ def runningSA():
     nx.draw_networkx_edges(Graph, pos, actE, edge_color='red')
     
     plt.show()
+    savefig('demo.png', transparent=True)
+    return listEnergy, listCoverNAct, listUnCoverAct, listNbrLidarAct
 
-# if __name__ == "__main__":
-    # runningSA()
+# listEnergy, listCoverNAct, listUnCoverAct, ListNbrLidarAct = runningSA()
+if __name__ == "__main__":
+    runningSA()
