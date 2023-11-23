@@ -1,0 +1,7 @@
+numpy 
+docplex
+qiskit-optimization
+networkx
+matplotlib
+dwave-neal
+greedy
